@@ -17,11 +17,10 @@ export function TabSwitcherOverlay({ onSelect, onDismiss }: TabSwitcherOverlayPr
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.ctrlKey) {
         e.preventDefault();
-        e.stopPropagation();
-        setIndex((i) => {
-          if (e.shiftKey) return (i - 1 + tasks.length) % tasks.length;
-          return (i + 1) % tasks.length;
-        });
+        setIndex((i) => e.shiftKey
+          ? (i - 1 + tasks.length) % tasks.length
+          : (i + 1) % tasks.length
+        );
       } else if (e.key === 'Escape') {
         e.preventDefault();
         onDismiss();
@@ -42,7 +41,6 @@ export function TabSwitcherOverlay({ onSelect, onDismiss }: TabSwitcherOverlayPr
     };
   }, [tasks, index, onSelect, onDismiss]);
 
-  // Scroll selected item into view
   useEffect(() => {
     const el = listRef.current?.children[index] as HTMLElement | undefined;
     el?.scrollIntoView({ block: 'nearest' });
@@ -58,9 +56,7 @@ export function TabSwitcherOverlay({ onSelect, onDismiss }: TabSwitcherOverlayPr
             <div
               key={task.taskId}
               className={`flex items-center gap-2.5 rounded-md px-2 py-2 text-sm ${
-                i === index
-                  ? 'bg-background-2 text-foreground'
-                  : 'text-foreground-muted'
+                i === index ? 'bg-background-2 text-foreground' : 'text-foreground-muted'
               }`}
             >
               <GitBranch size={14} className="shrink-0 text-foreground/40" />
