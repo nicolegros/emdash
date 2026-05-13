@@ -1,6 +1,7 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { TabSwitcherOverlay } from '@renderer/features/project-switcher/tab-switcher-overlay';
 import { useProjectSwitcher } from '@renderer/features/project-switcher/use-project-switcher';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
@@ -12,6 +13,7 @@ import { useTheme } from '@renderer/lib/hooks/useTheme';
 import { useWorkspaceLayoutContext } from '@renderer/lib/layout/layout-provider';
 import { useParams, useWorkspaceSlots } from '@renderer/lib/layout/navigation-provider';
 import { useShowModal } from '@renderer/lib/modal/modal-provider';
+import { modalStore } from '@renderer/lib/modal/modal-store';
 
 /**
  * Mounts global keyboard shortcut handlers that require React context and
@@ -43,45 +45,29 @@ export function AppKeyboardShortcuts() {
   const switcherNextHotkey = getEffectiveHotkey('switcherNextTask', keyboard);
   const switcherPrevHotkey = getEffectiveHotkey('switcherPrevTask', keyboard);
 
-  // Ctrl+Tab / Ctrl+Shift+Tab: cycle through tasks while Ctrl is held
+  // Ctrl+Tab / Ctrl+Shift+Tab: show lightweight tab switcher overlay
   const { getTaskList, navigateTo } = useProjectSwitcher();
+  const [showTabSwitcher, setShowTabSwitcher] = useState(false);
   useEffect(() => {
     if (!switcherNextHotkey && !switcherPrevHotkey) return;
-    let cycleList: Array<{ projectId: string; taskId: string }> | null = null;
-    let cycleIndex = 0;
-
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey) {
+      if (e.key === 'Tab' && e.ctrlKey && !showTabSwitcher && !modalStore.isOpen) {
         e.preventDefault();
-        // Snapshot the list on first Tab press in this Ctrl-hold session
-        if (!cycleList) {
-          cycleList = getTaskList();
-          cycleIndex = 0;
-        }
-        if (!cycleList || cycleList.length === 0) return;
-        // Advance index
-        if (e.shiftKey) {
-          cycleIndex = (cycleIndex - 1 + cycleList.length) % cycleList.length;
-        } else {
-          cycleIndex = (cycleIndex + 1) % cycleList.length;
-        }
-        const target = cycleList[cycleIndex];
-        navigateTo(target);
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control') {
-        cycleList = null;
-        cycleIndex = 0;
+        setShowTabSwitcher(true);
       }
     };
     window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('keyup', onKeyUp, true);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('keyup', onKeyUp, true);
-    };
-  }, [switcherNextHotkey, switcherPrevHotkey, getTaskList, navigateTo]);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [switcherNextHotkey, switcherPrevHotkey, showTabSwitcher]);
+
+  const handleTabSwitcherSelect = useCallback(
+    (projectId: string, taskId: string) => {
+      setShowTabSwitcher(false);
+      navigateTo({ projectId, taskId });
+    },
+    [navigateTo]
+  );
+  const handleTabSwitcherDismiss = useCallback(() => setShowTabSwitcher(false), []);
 
   // Resolve current project/task context for the command palette
   const { currentView } = useWorkspaceSlots();
@@ -123,5 +109,7 @@ export function AppKeyboardShortcuts() {
     enabled: toggleThemeHotkey !== null,
   });
 
-  return null;
+  return showTabSwitcher ? (
+    <TabSwitcherOverlay onSelect={handleTabSwitcherSelect} onDismiss={handleTabSwitcherDismiss} />
+  ) : null;
 }

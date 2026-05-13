@@ -83,8 +83,8 @@ export function useProjectSwitcher() {
     return [...grouped.values()].filter((g) => g.tasks.length > 0);
   });
 
-  const getTaskList = (): Array<{ projectId: string; taskId: string }> => {
-    return getAllTasks().map((t) => ({ projectId: t.projectId, taskId: t.data.id }));
+  const getTaskList = (): Array<{ projectId: string; taskId: string; name: string }> => {
+    return getAllTasks().map((t) => ({ projectId: t.projectId, taskId: t.data.id, name: t.data.name }));
   };
 
   const navigateTo = (target: { projectId: string; taskId: string }) => {
