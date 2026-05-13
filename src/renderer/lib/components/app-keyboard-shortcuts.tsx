@@ -1,6 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useTabSwitcher } from '@renderer/features/project-switcher/use-tab-switcher';
+import { useEffect } from 'react';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
@@ -11,6 +11,7 @@ import { useTheme } from '@renderer/lib/hooks/useTheme';
 import { useWorkspaceLayoutContext } from '@renderer/lib/layout/layout-provider';
 import { useParams, useWorkspaceSlots } from '@renderer/lib/layout/navigation-provider';
 import { useShowModal } from '@renderer/lib/modal/modal-provider';
+import { modalStore } from '@renderer/lib/modal/modal-store';
 
 /**
  * Mounts global keyboard shortcut handlers that require React context and
@@ -19,7 +20,7 @@ import { useShowModal } from '@renderer/lib/modal/modal-provider';
  * Shortcuts handled here:
  *   - commandPalette: needs showModal with current view context
  *   - projectSwitcher: needs showModal
- *   - switcherNextTask/switcherPrevTask: Ctrl+Tab cycling (delegated to useTabSwitcher)
+ *   - switcherNextTask/switcherPrevTask: Ctrl+Tab opens tabSwitcherModal
  *   - toggleLeftSidebar: needs useWorkspaceLayoutContext
  *   - toggleTheme: needs useTheme
  *
@@ -30,6 +31,7 @@ export function AppKeyboardShortcuts() {
   const { value: keyboard } = useAppSettingsKey('keyboard');
   const showCommandPalette = useShowModal('commandPaletteModal');
   const showProjectSwitcher = useShowModal('projectSwitcherModal');
+  const showTabSwitcher = useShowModal('tabSwitcherModal');
   const { toggleLeft } = useWorkspaceLayoutContext();
   const { toggleTheme } = useTheme();
 
@@ -56,8 +58,6 @@ export function AppKeyboardShortcuts() {
     return getRegisteredTaskData(currentProjectId, currentTaskId)?.workspaceId ?? undefined;
   });
 
-  // ── Shortcut registrations ───────────────────────────────────────────────
-
   useHotkey(
     getHotkeyRegistration('commandPalette', keyboard),
     () => showCommandPalette({ projectId: currentProjectId, taskId: currentTaskId, workspaceId: currentWorkspaceId }),
@@ -76,9 +76,18 @@ export function AppKeyboardShortcuts() {
     enabled: toggleThemeHotkey !== null,
   });
 
-  // ── Ctrl+Tab switcher (renders overlay when active) ──────────────────────
+  // Ctrl+Tab: raw listener (TanStack can't handle Ctrl+Tab reliably)
+  useEffect(() => {
+    if (!switcherNextHotkey && !switcherPrevHotkey) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && e.ctrlKey && modalStore.activeModalId !== 'tabSwitcherModal') {
+        e.preventDefault();
+        showTabSwitcher({});
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [switcherNextHotkey, switcherPrevHotkey, showTabSwitcher]);
 
-  const tabSwitcherOverlay = useTabSwitcher(!!(switcherNextHotkey || switcherPrevHotkey));
-
-  return tabSwitcherOverlay;
+  return null;
 }
