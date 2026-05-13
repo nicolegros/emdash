@@ -84,7 +84,13 @@ export function useProjectSwitcher() {
   });
 
   const getTaskList = (): Array<{ projectId: string; taskId: string; name: string }> => {
-    return getAllTasks().map((t) => ({ projectId: t.projectId, taskId: t.data.id, name: t.data.name }));
+    const all = getAllTasks().map((t) => ({ projectId: t.projectId, taskId: t.data.id, name: t.data.name }));
+    const idx = all.findIndex((t) => t.taskId === currentTaskId);
+    if (idx !== -1) {
+      const [current] = all.splice(idx, 1);
+      all.push(current);
+    }
+    return all;
   };
 
   const navigateTo = (target: { projectId: string; taskId: string }) => {
