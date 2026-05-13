@@ -1,6 +1,8 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
+import { useEffect } from 'react';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
+import { useProjectSwitcher } from '@renderer/features/project-switcher/use-project-switcher';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
   getEffectiveHotkey,
@@ -46,6 +48,25 @@ export function AppKeyboardShortcuts() {
   const toggleLeftSidebarHotkey = getEffectiveHotkey('toggleLeftSidebar', keyboard);
   const toggleThemeHotkey = getEffectiveHotkey('toggleTheme', keyboard);
 
+  const switcherNextHotkey = getEffectiveHotkey('switcherNextTask', keyboard);
+  const switcherPrevHotkey = getEffectiveHotkey('switcherPrevTask', keyboard);
+
+  // Ctrl+Tab / Ctrl+Shift+Tab: navigate directly to next/prev task
+  const { switchToNext, switchToPrev } = useProjectSwitcher();
+  useEffect(() => {
+    if (!switcherNextHotkey && !switcherPrevHotkey) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && e.ctrlKey) {
+        e.preventDefault();
+        if (e.shiftKey) switchToPrev();
+        else switchToNext();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [switcherNextHotkey, switcherPrevHotkey, switchToNext, switchToPrev]);
+
+  // Resolve current project/task context for the command palette
   const { currentView, lastNonSettingsView } = useWorkspaceSlots();
   const { params: taskParams } = useParams('task');
   const { params: projectParams } = useParams('project');
@@ -86,7 +107,7 @@ export function AppKeyboardShortcuts() {
 
   useHotkey(
     getHotkeyRegistration('projectSwitcher', keyboard),
-    () => showProjectSwitcher({ currentTaskId }),
+    () => showProjectSwitcher({}),
     { enabled: projectSwitcherHotkey !== null }
   );
 
