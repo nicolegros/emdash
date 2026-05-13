@@ -1,7 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useEffect } from 'react';
-import { useProjectSwitcher } from '@renderer/features/project-switcher/use-project-switcher';
+import { useTaskSwitcherShortcut } from '@renderer/features/task-switcher/use-task-switcher-shortcut';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
@@ -22,13 +21,10 @@ import { modalStore } from '@renderer/lib/modal/modal-store';
  * Mounts global keyboard shortcut handlers that require React context and
  * cannot be handled by the command registry.
  *
- * Renders nothing — exists only to register useHotkey() calls that are always active.
- * Must be mounted inside all relevant providers (ModalProvider, WorkspaceLayoutContext, etc.).
- *
  * Shortcuts handled here:
  *   - commandPalette: needs showModal with current view context
  *   - projectSwitcher: needs showModal
- *   - switcherNextTask/switcherPrevTask: Ctrl+Tab cycling
+ *   - switcherNextTask/switcherPrevTask: Ctrl+Tab opens tabSwitcherModal
  *   - toggleLeftSidebar: needs useWorkspaceLayoutContext
  *   - toggleTheme: needs useTheme
  *
@@ -39,6 +35,7 @@ export function AppKeyboardShortcuts() {
   const { value: keyboard } = useAppSettingsKey('keyboard');
   const showCommandPalette = useShowModal('commandPaletteModal');
   const showProjectSwitcher = useShowModal('projectSwitcherModal');
+  const showTabSwitcher = useShowModal('tabSwitcherModal');
   const { toggleLeft } = useWorkspaceLayoutContext();
   const { toggleTheme } = useTheme();
   const { navigate } = useNavigate();
@@ -48,24 +45,8 @@ export function AppKeyboardShortcuts() {
   const closeModalHotkey = getEffectiveHotkey('closeModal', keyboard);
   const toggleLeftSidebarHotkey = getEffectiveHotkey('toggleLeftSidebar', keyboard);
   const toggleThemeHotkey = getEffectiveHotkey('toggleTheme', keyboard);
-
   const switcherNextHotkey = getEffectiveHotkey('switcherNextTask', keyboard);
   const switcherPrevHotkey = getEffectiveHotkey('switcherPrevTask', keyboard);
-
-  // Ctrl+Tab / Ctrl+Shift+Tab: navigate directly to next/prev task
-  const { switchToNext, switchToPrev } = useProjectSwitcher();
-  useEffect(() => {
-    if (!switcherNextHotkey && !switcherPrevHotkey) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey) {
-        e.preventDefault();
-        if (e.shiftKey) switchToPrev();
-        else switchToNext();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [switcherNextHotkey, switcherPrevHotkey, switchToNext, switchToPrev]);
 
   // Resolve current project/task context for the command palette
   const { currentView, lastNonSettingsView } = useWorkspaceSlots();
@@ -79,7 +60,6 @@ export function AppKeyboardShortcuts() {
         ? projectParams.projectId
         : undefined;
   const currentTaskId = currentView === 'task' ? taskParams.taskId : undefined;
-
   const currentWorkspaceId = useObserver(() => {
     if (!currentProjectId || !currentTaskId) return undefined;
     return getRegisteredTaskData(currentProjectId, currentTaskId)?.workspaceId ?? undefined;
@@ -87,18 +67,13 @@ export function AppKeyboardShortcuts() {
 
   useHotkey(
     getHotkeyRegistration('commandPalette', keyboard),
-    () =>
-      showCommandPalette({
-        projectId: currentProjectId,
-        taskId: currentTaskId,
-        workspaceId: currentWorkspaceId,
-      }),
+    () => showCommandPalette({ projectId: currentProjectId, taskId: currentTaskId, workspaceId: currentWorkspaceId }),
     { enabled: commandPaletteHotkey !== null }
   );
 
   useHotkey(
     getHotkeyRegistration('projectSwitcher', keyboard),
-    () => showProjectSwitcher({ currentTaskId }),
+    () => showProjectSwitcher({}),
     { enabled: projectSwitcherHotkey !== null }
   );
 
@@ -119,6 +94,14 @@ export function AppKeyboardShortcuts() {
   useHotkey(getHotkeyRegistration('toggleTheme', keyboard), () => toggleTheme(), {
     enabled: toggleThemeHotkey !== null,
   });
+
+  // Ctrl+Tab: drives TaskSwitcherStore, opens modal after delay
+  useTaskSwitcherShortcut(
+    !!(switcherNextHotkey || switcherPrevHotkey),
+    currentTaskId,
+    (target) => navigate('task', { projectId: target.projectId, taskId: target.taskId }),
+    () => showTabSwitcher({})
+  );
 
   return null;
 }

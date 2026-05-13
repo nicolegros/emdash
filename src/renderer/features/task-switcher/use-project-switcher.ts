@@ -83,20 +83,25 @@ export function useProjectSwitcher() {
     return [...grouped.values()].filter((g) => g.tasks.length > 0);
   });
 
-  const switchTask = (direction: 1 | -1) => {
-    const allTasks = getAllTasks();
-    if (allTasks.length === 0) return;
-    // Filter out current task to get MRU order, then pick first (next) or last (prev)
-    const others = allTasks.filter((t) => t.data.id !== currentTaskId);
-    if (others.length === 0) return;
-    const target = direction === 1 ? others[0] : others[others.length - 1];
-    navigate('task', { projectId: target.projectId, taskId: target.data.id });
+  const getTaskList = (): Array<{ projectId: string; taskId: string; name: string }> => {
+    const all = getAllTasks().map((t) => ({ projectId: t.projectId, taskId: t.data.id, name: t.data.name }));
+    const idx = all.findIndex((t) => t.taskId === currentTaskId);
+    if (idx !== -1) {
+      const [current] = all.splice(idx, 1);
+      all.push(current);
+    }
+    return all;
+  };
+
+  const navigateTo = (target: { projectId: string; taskId: string }) => {
+    navigate('task', { projectId: target.projectId, taskId: target.taskId });
   };
 
   return {
     projects,
     currentTaskId,
-    switchToNext: () => switchTask(1),
-    switchToPrev: () => switchTask(-1),
+    getTaskList,
+    navigateTo,
   };
 }
+
