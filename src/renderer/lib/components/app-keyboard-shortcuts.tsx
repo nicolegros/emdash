@@ -1,6 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useTaskSwitcherShortcut } from '@renderer/features/project-switcher/use-task-switcher-shortcut';
+import { useTaskSwitcherShortcut } from '@renderer/features/task-switcher/use-task-switcher-shortcut';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
