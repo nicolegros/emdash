@@ -1,54 +1,31 @@
 import { GitBranch } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useObserver } from 'mobx-react-lite';
+import { useEffect, useRef } from 'react';
 import { type BaseModalProps } from '@renderer/lib/modal/modal-provider';
-import { useProjectSwitcher } from './use-project-switcher';
+import { appState } from '@renderer/lib/stores/app-state';
 
-export function TabSwitcherModal({ onClose }: BaseModalProps) {
-  const { getTaskList, navigateTo, currentTaskId } = useProjectSwitcher();
-  const [tasks] = useState(() => getTaskList());
-  const [index, setIndex] = useState(0);
+export function TabSwitcherModal(_props: BaseModalProps) {
+  const tasks = useObserver(() => appState.taskSwitcher.cycleList);
+  const pendingTask = useObserver(() => appState.taskSwitcher.pendingTask);
+  const currentTaskId = useObserver(() => appState.taskSwitcher.currentTaskId);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        setIndex((i) => e.shiftKey
-          ? (i - 1 + tasks.length) % tasks.length
-          : (i + 1) % tasks.length
-        );
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control') {
-        const target = tasks[index];
-        if (target) navigateTo(target);
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('keyup', onKeyUp, true);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('keyup', onKeyUp, true);
-    };
-  }, [tasks, index, navigateTo, onClose]);
-
-  useEffect(() => {
-    const el = listRef.current?.children[index] as HTMLElement | undefined;
+    if (!pendingTask) return;
+    const el = listRef.current?.querySelector('[data-active="true"]') as HTMLElement | undefined;
     el?.scrollIntoView({ block: 'nearest' });
-  }, [index]);
+  }, [pendingTask]);
 
   if (tasks.length === 0) return null;
 
   return (
     <div ref={listRef} className="p-1">
-      {tasks.map((task, i) => (
+      {tasks.map((task) => (
         <div
           key={task.taskId}
+          data-active={task.taskId === pendingTask?.taskId}
           className={`flex items-center gap-2.5 rounded-md px-2 py-2 text-sm ${
-            i === index ? 'bg-background-2 text-foreground' : 'text-foreground-muted'
+            task.taskId === pendingTask?.taskId ? 'bg-background-2 text-foreground' : 'text-foreground-muted'
           }`}
         >
           <GitBranch size={14} className="shrink-0 text-foreground/40" />

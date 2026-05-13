@@ -1,6 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useCtrlTabShortcut } from '@renderer/features/project-switcher/use-ctrl-tab-shortcut';
+import { useTaskSwitcherShortcut } from '@renderer/features/project-switcher/use-task-switcher-shortcut';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
@@ -10,6 +10,7 @@ import {
 import { useTheme } from '@renderer/lib/hooks/useTheme';
 import { useWorkspaceLayoutContext } from '@renderer/lib/layout/layout-provider';
 import { useParams, useWorkspaceSlots } from '@renderer/lib/layout/navigation-provider';
+import { useNavigate } from '@renderer/lib/layout/navigation-provider';
 import { useShowModal } from '@renderer/lib/modal/modal-provider';
 
 /**
@@ -33,6 +34,7 @@ export function AppKeyboardShortcuts() {
   const showTabSwitcher = useShowModal('tabSwitcherModal');
   const { toggleLeft } = useWorkspaceLayoutContext();
   const { toggleTheme } = useTheme();
+  const { navigate } = useNavigate();
 
   const commandPaletteHotkey = getEffectiveHotkey('commandPalette', keyboard);
   const projectSwitcherHotkey = getEffectiveHotkey('projectSwitcher', keyboard);
@@ -75,8 +77,13 @@ export function AppKeyboardShortcuts() {
     enabled: toggleThemeHotkey !== null,
   });
 
-  // Ctrl+Tab: opens tab switcher modal
-  useCtrlTabShortcut(!!(switcherNextHotkey || switcherPrevHotkey), showTabSwitcher);
+  // Ctrl+Tab: drives TaskSwitcherStore, opens modal after delay
+  useTaskSwitcherShortcut(
+    !!(switcherNextHotkey || switcherPrevHotkey),
+    currentTaskId,
+    (target) => navigate('task', { projectId: target.projectId, taskId: target.taskId }),
+    () => showTabSwitcher({})
+  );
 
   return null;
 }
