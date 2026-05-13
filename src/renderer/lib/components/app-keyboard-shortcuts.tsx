@@ -1,6 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useEffect } from 'react';
+import { useCtrlTabShortcut } from '@renderer/features/project-switcher/use-ctrl-tab-shortcut';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
@@ -11,7 +11,6 @@ import { useTheme } from '@renderer/lib/hooks/useTheme';
 import { useWorkspaceLayoutContext } from '@renderer/lib/layout/layout-provider';
 import { useParams, useWorkspaceSlots } from '@renderer/lib/layout/navigation-provider';
 import { useShowModal } from '@renderer/lib/modal/modal-provider';
-import { modalStore } from '@renderer/lib/modal/modal-store';
 
 /**
  * Mounts global keyboard shortcut handlers that require React context and
@@ -76,18 +75,8 @@ export function AppKeyboardShortcuts() {
     enabled: toggleThemeHotkey !== null,
   });
 
-  // Ctrl+Tab: raw listener (TanStack can't handle Ctrl+Tab reliably)
-  useEffect(() => {
-    if (!switcherNextHotkey && !switcherPrevHotkey) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey && modalStore.activeModalId !== 'tabSwitcherModal') {
-        e.preventDefault();
-        showTabSwitcher({});
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [switcherNextHotkey, switcherPrevHotkey, showTabSwitcher]);
+  // Ctrl+Tab: opens tab switcher modal
+  useCtrlTabShortcut(!!(switcherNextHotkey || switcherPrevHotkey), showTabSwitcher);
 
   return null;
 }
