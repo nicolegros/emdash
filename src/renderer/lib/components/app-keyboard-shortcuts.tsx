@@ -72,7 +72,6 @@ export function AppKeyboardShortcuts() {
         } else {
           cycle.index = (cycle.index + 1) % cycle.list.length;
         }
-        navigateToRef.current(cycle.list[cycle.index]);
         setCycleIndex(cycle.index);
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => setShowTabSwitcher(true), 200);
@@ -81,6 +80,9 @@ export function AppKeyboardShortcuts() {
 
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Control') {
+        if (cycleRef.current && cycleRef.current.index >= 0) {
+          navigateToRef.current(cycleRef.current.list[cycleRef.current.index]);
+        }
         cycleRef.current = null;
         if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
         setShowTabSwitcher(false);
