@@ -1,8 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useEffect, useRef, useState } from 'react';
-import { TabSwitcherOverlay } from '@renderer/features/project-switcher/tab-switcher-overlay';
-import { useProjectSwitcher } from '@renderer/features/project-switcher/use-project-switcher';
+import { useTabSwitcher } from '@renderer/features/project-switcher/use-tab-switcher';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
 import { getRegisteredTaskData } from '@renderer/features/tasks/stores/task-selectors';
 import {
@@ -13,18 +11,15 @@ import { useTheme } from '@renderer/lib/hooks/useTheme';
 import { useWorkspaceLayoutContext } from '@renderer/lib/layout/layout-provider';
 import { useParams, useWorkspaceSlots } from '@renderer/lib/layout/navigation-provider';
 import { useShowModal } from '@renderer/lib/modal/modal-provider';
-import { modalStore } from '@renderer/lib/modal/modal-store';
 
 /**
  * Mounts global keyboard shortcut handlers that require React context and
  * cannot be handled by the command registry.
  *
- * Renders nothing — exists only to register useHotkey() calls that are always active.
- * Must be mounted inside all relevant providers (ModalProvider, WorkspaceLayoutContext, etc.).
- *
  * Shortcuts handled here:
  *   - commandPalette: needs showModal with current view context
  *   - projectSwitcher: needs showModal
+ *   - switcherNextTask/switcherPrevTask: Ctrl+Tab cycling (delegated to useTabSwitcher)
  *   - toggleLeftSidebar: needs useWorkspaceLayoutContext
  *   - toggleTheme: needs useTheme
  *
@@ -37,65 +32,13 @@ export function AppKeyboardShortcuts() {
   const showProjectSwitcher = useShowModal('projectSwitcherModal');
   const { toggleLeft } = useWorkspaceLayoutContext();
   const { toggleTheme } = useTheme();
+
   const commandPaletteHotkey = getEffectiveHotkey('commandPalette', keyboard);
   const projectSwitcherHotkey = getEffectiveHotkey('projectSwitcher', keyboard);
   const toggleLeftSidebarHotkey = getEffectiveHotkey('toggleLeftSidebar', keyboard);
   const toggleThemeHotkey = getEffectiveHotkey('toggleTheme', keyboard);
-
   const switcherNextHotkey = getEffectiveHotkey('switcherNextTask', keyboard);
   const switcherPrevHotkey = getEffectiveHotkey('switcherPrevTask', keyboard);
-
-  // Ctrl+Tab switcher: navigate instantly, show overlay after delay if Ctrl held
-  const { getTaskList, navigateTo, currentTaskId: switcherCurrentTaskId } = useProjectSwitcher();
-  const [showTabSwitcher, setShowTabSwitcher] = useState(false);
-  const [cycleIndex, setCycleIndex] = useState(0);
-  const cycleRef = useRef<{ list: Array<{ projectId: string; taskId: string; name: string }>; index: number } | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const getTaskListRef = useRef(getTaskList);
-  const navigateToRef = useRef(navigateTo);
-  getTaskListRef.current = getTaskList;
-  navigateToRef.current = navigateTo;
-
-  useEffect(() => {
-    if (!switcherNextHotkey && !switcherPrevHotkey) return;
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey && !modalStore.isOpen) {
-        e.preventDefault();
-        if (!cycleRef.current) {
-          cycleRef.current = { list: getTaskListRef.current(), index: -1 };
-        }
-        const cycle = cycleRef.current;
-        if (cycle.list.length === 0) return;
-        if (e.shiftKey) {
-          cycle.index = (cycle.index - 1 + cycle.list.length) % cycle.list.length;
-        } else {
-          cycle.index = (cycle.index + 1) % cycle.list.length;
-        }
-        setCycleIndex(cycle.index);
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => setShowTabSwitcher(true), 200);
-      }
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control') {
-        if (cycleRef.current && cycleRef.current.index >= 0) {
-          navigateToRef.current(cycleRef.current.list[cycleRef.current.index]);
-        }
-        cycleRef.current = null;
-        if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-        setShowTabSwitcher(false);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('keyup', onKeyUp, true);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('keyup', onKeyUp, true);
-    };
-  }, [switcherNextHotkey, switcherPrevHotkey]);
 
   // Resolve current project/task context for the command palette
   const { currentView } = useWorkspaceSlots();
@@ -108,20 +51,16 @@ export function AppKeyboardShortcuts() {
         ? projectParams.projectId
         : undefined;
   const currentTaskId = currentView === 'task' ? taskParams.taskId : undefined;
-
   const currentWorkspaceId = useObserver(() => {
     if (!currentProjectId || !currentTaskId) return undefined;
     return getRegisteredTaskData(currentProjectId, currentTaskId)?.workspaceId ?? undefined;
   });
 
+  // ── Shortcut registrations ───────────────────────────────────────────────
+
   useHotkey(
     getHotkeyRegistration('commandPalette', keyboard),
-    () =>
-      showCommandPalette({
-        projectId: currentProjectId,
-        taskId: currentTaskId,
-        workspaceId: currentWorkspaceId,
-      }),
+    () => showCommandPalette({ projectId: currentProjectId, taskId: currentTaskId, workspaceId: currentWorkspaceId }),
     { enabled: commandPaletteHotkey !== null }
   );
 
@@ -137,11 +76,9 @@ export function AppKeyboardShortcuts() {
     enabled: toggleThemeHotkey !== null,
   });
 
-  return showTabSwitcher && cycleRef.current ? (
-    <TabSwitcherOverlay
-      tasks={cycleRef.current.list}
-      index={cycleIndex}
-      currentTaskId={switcherCurrentTaskId}
-    />
-  ) : null;
+  // ── Ctrl+Tab switcher (renders overlay when active) ──────────────────────
+
+  const tabSwitcherOverlay = useTabSwitcher(!!(switcherNextHotkey || switcherPrevHotkey));
+
+  return tabSwitcherOverlay;
 }
