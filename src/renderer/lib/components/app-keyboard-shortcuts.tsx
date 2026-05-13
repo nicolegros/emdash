@@ -1,6 +1,6 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useObserver } from 'mobx-react-lite';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TabSwitcherOverlay } from '@renderer/features/project-switcher/tab-switcher-overlay';
 import { useProjectSwitcher } from '@renderer/features/project-switcher/use-project-switcher';
 import { useAppSettingsKey } from '@renderer/features/settings/use-app-settings-key';
@@ -45,29 +45,57 @@ export function AppKeyboardShortcuts() {
   const switcherNextHotkey = getEffectiveHotkey('switcherNextTask', keyboard);
   const switcherPrevHotkey = getEffectiveHotkey('switcherPrevTask', keyboard);
 
-  // Ctrl+Tab / Ctrl+Shift+Tab: show lightweight tab switcher overlay
-  const { getTaskList, navigateTo } = useProjectSwitcher();
+  // Ctrl+Tab switcher: navigate instantly, show overlay after delay if Ctrl held
+  const { getTaskList, navigateTo, currentTaskId: switcherCurrentTaskId } = useProjectSwitcher();
   const [showTabSwitcher, setShowTabSwitcher] = useState(false);
+  const [cycleIndex, setCycleIndex] = useState(0);
+  const cycleRef = useRef<{ list: Array<{ projectId: string; taskId: string; name: string }>; index: number } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!switcherNextHotkey && !switcherPrevHotkey) return;
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey && !showTabSwitcher && !modalStore.isOpen) {
+      if (e.key === 'Tab' && e.ctrlKey && !modalStore.isOpen) {
         e.preventDefault();
-        setShowTabSwitcher(true);
+        // Snapshot list on first press
+        if (!cycleRef.current) {
+          cycleRef.current = { list: getTaskList(), index: -1 };
+        }
+        const cycle = cycleRef.current;
+        if (cycle.list.length === 0) return;
+        // Advance index
+        if (e.shiftKey) {
+          cycle.index = (cycle.index - 1 + cycle.list.length) % cycle.list.length;
+        } else {
+          cycle.index = (cycle.index + 1) % cycle.list.length;
+        }
+        // Navigate immediately
+        navigateTo(cycle.list[cycle.index]);
+        setCycleIndex(cycle.index);
+        // Start/reset timer to show overlay
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setShowTabSwitcher(true), 200);
       }
     };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [switcherNextHotkey, switcherPrevHotkey, showTabSwitcher]);
 
-  const handleTabSwitcherSelect = useCallback(
-    (projectId: string, taskId: string) => {
-      setShowTabSwitcher(false);
-      navigateTo({ projectId, taskId });
-    },
-    [navigateTo]
-  );
-  const handleTabSwitcherDismiss = useCallback(() => setShowTabSwitcher(false), []);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control') {
+        // Reset cycle
+        cycleRef.current = null;
+        if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+        setShowTabSwitcher(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('keyup', onKeyUp, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('keyup', onKeyUp, true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [switcherNextHotkey, switcherPrevHotkey, getTaskList, navigateTo]);
 
   // Resolve current project/task context for the command palette
   const { currentView } = useWorkspaceSlots();
@@ -109,7 +137,11 @@ export function AppKeyboardShortcuts() {
     enabled: toggleThemeHotkey !== null,
   });
 
-  return showTabSwitcher ? (
-    <TabSwitcherOverlay onSelect={handleTabSwitcherSelect} onDismiss={handleTabSwitcherDismiss} />
+  return showTabSwitcher && cycleRef.current ? (
+    <TabSwitcherOverlay
+      tasks={cycleRef.current.list}
+      index={cycleIndex}
+      currentTaskId={switcherCurrentTaskId}
+    />
   ) : null;
 }

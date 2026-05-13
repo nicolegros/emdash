@@ -1,45 +1,14 @@
 import { GitBranch } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useProjectSwitcher } from './use-project-switcher';
+import { useEffect, useRef } from 'react';
 
 interface TabSwitcherOverlayProps {
-  onSelect: (projectId: string, taskId: string) => void;
-  onDismiss: () => void;
+  tasks: Array<{ projectId: string; taskId: string; name: string }>;
+  index: number;
+  currentTaskId: string | undefined;
 }
 
-export function TabSwitcherOverlay({ onSelect, onDismiss }: TabSwitcherOverlayProps) {
-  const { getTaskList, currentTaskId } = useProjectSwitcher();
-  const [tasks] = useState(() => getTaskList());
-  const [index, setIndex] = useState(0);
+export function TabSwitcherOverlay({ tasks, index, currentTaskId }: TabSwitcherOverlayProps) {
   const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.ctrlKey) {
-        e.preventDefault();
-        setIndex((i) => e.shiftKey
-          ? (i - 1 + tasks.length) % tasks.length
-          : (i + 1) % tasks.length
-        );
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        onDismiss();
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control') {
-        const target = tasks[index];
-        if (target) onSelect(target.projectId, target.taskId);
-        else onDismiss();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('keyup', onKeyUp, true);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('keyup', onKeyUp, true);
-    };
-  }, [tasks, index, onSelect, onDismiss]);
 
   useEffect(() => {
     const el = listRef.current?.children[index] as HTMLElement | undefined;
