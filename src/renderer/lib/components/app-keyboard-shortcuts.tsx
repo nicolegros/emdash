@@ -105,11 +105,9 @@ export function AppKeyboardShortcuts() {
     { enabled: currentView === 'settings' && closeModalHotkey !== null }
   );
 
-  useHotkey(
-    getHotkeyRegistration('projectSwitcher', keyboard),
-    () => showProjectSwitcher({}),
-    { enabled: projectSwitcherHotkey !== null }
-  );
+  useHotkey(getHotkeyRegistration('projectSwitcher', keyboard), () => showProjectSwitcher({}), {
+    enabled: projectSwitcherHotkey !== null,
+  });
 
   useHotkey(getHotkeyRegistration('toggleLeftSidebar', keyboard), () => toggleLeft(), {
     enabled: toggleLeftSidebarHotkey !== null,
