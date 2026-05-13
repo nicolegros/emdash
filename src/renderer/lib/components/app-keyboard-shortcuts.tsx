@@ -16,14 +16,32 @@ import {
 import { useShowModal } from '@renderer/lib/modal/modal-provider';
 import { modalStore } from '@renderer/lib/modal/modal-store';
 
+/**
+ * Mounts global keyboard shortcut handlers that require React context and
+ * cannot be handled by the command registry.
+ *
+ * Renders nothing — exists only to register useHotkey() calls that are always active.
+ * Must be mounted inside all relevant providers (ModalProvider, WorkspaceLayoutContext, etc.).
+ *
+ * Shortcuts handled here:
+ *   - commandPalette: needs showModal with current view context
+ *   - projectSwitcher: needs showModal
+ *   - toggleLeftSidebar: needs useWorkspaceLayoutContext
+ *   - toggleTheme: needs useTheme
+ *
+ * Shortcuts NOT handled here (owned by the command registry via app-commands.ts):
+ *   - settings, newProject, newTask, navigateBack, navigateForward
+ */
 export function AppKeyboardShortcuts() {
   const { value: keyboard } = useAppSettingsKey('keyboard');
   const showCommandPalette = useShowModal('commandPaletteModal');
+  const showProjectSwitcher = useShowModal('projectSwitcherModal');
   const { toggleLeft } = useWorkspaceLayoutContext();
   const { toggleTheme } = useTheme();
   const { navigate } = useNavigate();
 
   const commandPaletteHotkey = getEffectiveHotkey('commandPalette', keyboard);
+  const projectSwitcherHotkey = getEffectiveHotkey('projectSwitcher', keyboard);
   const closeModalHotkey = getEffectiveHotkey('closeModal', keyboard);
   const toggleLeftSidebarHotkey = getEffectiveHotkey('toggleLeftSidebar', keyboard);
   const toggleThemeHotkey = getEffectiveHotkey('toggleTheme', keyboard);
@@ -54,6 +72,12 @@ export function AppKeyboardShortcuts() {
         workspaceId: currentWorkspaceId,
       }),
     { enabled: commandPaletteHotkey !== null }
+  );
+
+  useHotkey(
+    getHotkeyRegistration('projectSwitcher', keyboard),
+    () => showProjectSwitcher({ currentTaskId }),
+    { enabled: projectSwitcherHotkey !== null }
   );
 
   useHotkey(
