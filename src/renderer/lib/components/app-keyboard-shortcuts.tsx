@@ -51,6 +51,10 @@ export function AppKeyboardShortcuts() {
   const [cycleIndex, setCycleIndex] = useState(0);
   const cycleRef = useRef<{ list: Array<{ projectId: string; taskId: string; name: string }>; index: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const getTaskListRef = useRef(getTaskList);
+  const navigateToRef = useRef(navigateTo);
+  getTaskListRef.current = getTaskList;
+  navigateToRef.current = navigateTo;
 
   useEffect(() => {
     if (!switcherNextHotkey && !switcherPrevHotkey) return;
@@ -58,22 +62,18 @@ export function AppKeyboardShortcuts() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.ctrlKey && !modalStore.isOpen) {
         e.preventDefault();
-        // Snapshot list on first press
         if (!cycleRef.current) {
-          cycleRef.current = { list: getTaskList(), index: -1 };
+          cycleRef.current = { list: getTaskListRef.current(), index: -1 };
         }
         const cycle = cycleRef.current;
         if (cycle.list.length === 0) return;
-        // Advance index
         if (e.shiftKey) {
           cycle.index = (cycle.index - 1 + cycle.list.length) % cycle.list.length;
         } else {
           cycle.index = (cycle.index + 1) % cycle.list.length;
         }
-        // Navigate immediately
-        navigateTo(cycle.list[cycle.index]);
+        navigateToRef.current(cycle.list[cycle.index]);
         setCycleIndex(cycle.index);
-        // Start/reset timer to show overlay
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => setShowTabSwitcher(true), 200);
       }
@@ -81,7 +81,6 @@ export function AppKeyboardShortcuts() {
 
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'Control') {
-        // Reset cycle
         cycleRef.current = null;
         if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
         setShowTabSwitcher(false);
@@ -93,9 +92,8 @@ export function AppKeyboardShortcuts() {
     return () => {
       window.removeEventListener('keydown', onKeyDown, true);
       window.removeEventListener('keyup', onKeyUp, true);
-      if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [switcherNextHotkey, switcherPrevHotkey, getTaskList, navigateTo]);
+  }, [switcherNextHotkey, switcherPrevHotkey]);
 
   // Resolve current project/task context for the command palette
   const { currentView } = useWorkspaceSlots();
