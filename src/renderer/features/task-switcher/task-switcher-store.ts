@@ -1,6 +1,6 @@
 import { computed, makeAutoObservable } from 'mobx';
-import { asMounted } from '@renderer/features/projects/stores/project-selectors';
 import type { ProjectManagerStore } from '@renderer/features/projects/stores/project-manager';
+import { asMounted } from '@renderer/features/projects/stores/project-selectors';
 import { registeredTaskData } from '@renderer/features/tasks/stores/task-store';
 import { sortTasksForSwitcher, type SwitcherTask } from './sort-switcher-tasks';
 
@@ -16,34 +16,49 @@ export class TaskSwitcherStore {
   private _cycleList: SwitcherEntry[] = [];
   private _currentTaskId: string | null = null;
   private _index = 0;
+  /** Global MRU stack — most recently visited task ID first. */
+  private _mruStack: string[] = [];
 
   constructor(private readonly projectManager: ProjectManagerStore) {
     makeAutoObservable(this, { tasks: computed });
   }
 
+  /** Record a task visit, pushing it to the top of the MRU stack. */
+  recordVisit(taskId: string): void {
+    const idx = this._mruStack.indexOf(taskId);
+    if (idx > 0) this._mruStack.splice(idx, 1);
+    if (idx !== 0) this._mruStack.unshift(taskId);
+  }
+
   /** Live MRU-sorted task list (recomputes reactively). */
   get tasks(): SwitcherEntry[] {
-    const result: SwitcherEntry[] = [];
+    const allEntries: { projectId: string; task: SwitcherTask }[] = [];
     for (const store of this.projectManager.projects.values()) {
       const mounted = asMounted(store);
       if (!mounted) continue;
       const projectId = mounted.data.id;
-      const entries: SwitcherTask[] = [];
       for (const taskStore of mounted.taskManager.tasks.values()) {
         const task = registeredTaskData(taskStore);
         if (!task || task.archivedAt) continue;
-        entries.push({
-          id: task.id,
-          name: task.name,
-          status: task.status,
-          lastInteractedAt: task.lastInteractedAt ?? task.updatedAt,
+        allEntries.push({
+          projectId,
+          task: {
+            id: task.id,
+            name: task.name,
+            status: task.status,
+            lastInteractedAt: task.lastInteractedAt ?? task.updatedAt,
+          },
         });
       }
-      for (const t of sortTasksForSwitcher(entries)) {
-        result.push({ projectId, taskId: t.id, name: t.name });
-      }
     }
-    return result;
+    const sorted = sortTasksForSwitcher(
+      allEntries.map((e) => e.task),
+      this._mruStack
+    );
+    return sorted.map((t) => {
+      const entry = allEntries.find((e) => e.task.id === t.id)!;
+      return { projectId: entry.projectId, taskId: t.id, name: t.name };
+    });
   }
 
   /** The task currently highlighted during a cycle. */

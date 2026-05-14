@@ -31,6 +31,16 @@ export function useTaskSwitcherShortcut(
     const store = appState.taskSwitcher;
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && store.isCycling) {
+        e.preventDefault();
+        e.stopPropagation();
+        clearTimer();
+        store.cancel();
+        if (modalStore.activeModalId === 'tabSwitcherModal') {
+          modalStore.closeModal('dismissed');
+        }
+        return;
+      }
       if (e.key !== 'Tab' || !e.ctrlKey) return;
       e.preventDefault();
       e.stopPropagation();
