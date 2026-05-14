@@ -43,6 +43,7 @@ export function AppKeyboardShortcuts() {
   const commandPaletteHotkey = getEffectiveHotkey('commandPalette', keyboard);
   const projectSwitcherHotkey = getEffectiveHotkey('projectSwitcher', keyboard);
   const closeModalHotkey = getEffectiveHotkey('closeModal', keyboard);
+  const projectSwitcherHotkey = getEffectiveHotkey('projectSwitcher', keyboard);
   const toggleLeftSidebarHotkey = getEffectiveHotkey('toggleLeftSidebar', keyboard);
   const toggleThemeHotkey = getEffectiveHotkey('toggleTheme', keyboard);
   const switcherNextHotkey = getEffectiveHotkey('switcherNextTask', keyboard);
@@ -86,6 +87,10 @@ export function AppKeyboardShortcuts() {
     },
     { enabled: currentView === 'settings' && closeModalHotkey !== null }
   );
+
+  useHotkey(getHotkeyRegistration('projectSwitcher', keyboard), () => showProjectSwitcher({}), {
+    enabled: projectSwitcherHotkey !== null,
+  });
 
   useHotkey(getHotkeyRegistration('toggleLeftSidebar', keyboard), () => toggleLeft(), {
     enabled: toggleLeftSidebarHotkey !== null,
