@@ -39,6 +39,7 @@ export function useTaskSwitcherShortcut(
         if (modalStore.activeModalId === 'tabSwitcherModal') {
           modalStore.closeModal('dismissed');
         }
+        document.body.focus();
         return;
       }
       if (e.key !== 'Tab' || !e.ctrlKey) return;
