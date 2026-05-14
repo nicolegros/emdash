@@ -1,7 +1,6 @@
 import { CommandPaletteModal } from '@renderer/features/command-palette/command-palette-modal';
 import { IntegrationSetupModal } from '@renderer/features/integrations/integration-setup-modal';
 import { McpModal } from '@renderer/features/mcp/components/McpModal';
-import { ProjectSwitcherModal } from '@renderer/features/task-switcher/project-switcher-modal';
 import { TabSwitcherModal } from '@renderer/features/task-switcher/tab-switcher-modal';
 import { AddProjectModal } from '@renderer/features/projects/components/add-project-modal/add-project-modal';
 import { ShareProjectConfigModal } from '@renderer/features/projects/components/settings-view/share-project-config-modal';
@@ -38,7 +37,6 @@ export function createModal<TProps, TResult>(
 
 export const modalRegistry = {
   commandPaletteModal: createModal(CommandPaletteModal, { size: 'md' }),
-  projectSwitcherModal: createModal(ProjectSwitcherModal, { size: 'md' }),
   tabSwitcherModal: createModal(TabSwitcherModal, { size: 'xs' }),
   taskModal: createModal(CreateTaskModal),
   addProjectModal: createModal(AddProjectModal),

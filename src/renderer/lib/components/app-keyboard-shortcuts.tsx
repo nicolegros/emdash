@@ -23,7 +23,6 @@ import { modalStore } from '@renderer/lib/modal/modal-store';
  *
  * Shortcuts handled here:
  *   - commandPalette: needs showModal with current view context
- *   - projectSwitcher: needs showModal
  *   - switcherNextTask/switcherPrevTask: Ctrl+Tab opens tabSwitcherModal
  *   - toggleLeftSidebar: needs useWorkspaceLayoutContext
  *   - toggleTheme: needs useTheme
@@ -34,14 +33,12 @@ import { modalStore } from '@renderer/lib/modal/modal-store';
 export function AppKeyboardShortcuts() {
   const { value: keyboard } = useAppSettingsKey('keyboard');
   const showCommandPalette = useShowModal('commandPaletteModal');
-  const showProjectSwitcher = useShowModal('projectSwitcherModal');
   const showTabSwitcher = useShowModal('tabSwitcherModal');
   const { toggleLeft } = useWorkspaceLayoutContext();
   const { toggleTheme } = useTheme();
   const { navigate } = useNavigate();
 
   const commandPaletteHotkey = getEffectiveHotkey('commandPalette', keyboard);
-  const projectSwitcherHotkey = getEffectiveHotkey('projectSwitcher', keyboard);
   const closeModalHotkey = getEffectiveHotkey('closeModal', keyboard);
   const toggleLeftSidebarHotkey = getEffectiveHotkey('toggleLeftSidebar', keyboard);
   const toggleThemeHotkey = getEffectiveHotkey('toggleTheme', keyboard);
@@ -69,12 +66,6 @@ export function AppKeyboardShortcuts() {
     getHotkeyRegistration('commandPalette', keyboard),
     () => showCommandPalette({ projectId: currentProjectId, taskId: currentTaskId, workspaceId: currentWorkspaceId }),
     { enabled: commandPaletteHotkey !== null }
-  );
-
-  useHotkey(
-    getHotkeyRegistration('projectSwitcher', keyboard),
-    () => showProjectSwitcher({}),
-    { enabled: projectSwitcherHotkey !== null }
   );
 
   useHotkey(
