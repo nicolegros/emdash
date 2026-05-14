@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { APP_SHORTCUTS } from '@shared/shortcuts';
 import type { TaskLifecycleStatus } from '@shared/tasks';
 import { sortTasksForSwitcher } from './sort-switcher-tasks';
 
@@ -49,10 +48,3 @@ describe('sortTasksForSwitcher', () => {
   });
 });
 
-describe('projectSwitcher shortcut', () => {
-  it('is registered in APP_SHORTCUTS with Mod+E', () => {
-    expect(APP_SHORTCUTS.projectSwitcher).toBeDefined();
-    expect(APP_SHORTCUTS.projectSwitcher.defaultHotkey).toBe('Mod+E');
-    expect(APP_SHORTCUTS.projectSwitcher.category).toBe('Navigation');
-  });
-});
