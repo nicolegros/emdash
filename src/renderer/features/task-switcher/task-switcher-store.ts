@@ -50,6 +50,7 @@ export class TaskSwitcherStore {
           },
         });
       }
+
     }
     const sorted = sortTasksForSwitcher(
       allEntries.map((e) => e.task),
